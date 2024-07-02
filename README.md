@@ -1,6 +1,6 @@
 # Snap
 
-<a href="https://godoc.org/github.com/KasonBraley/snap"><img src="https://godoc.org/github.com/KasonBraley/snap?status.svg" alt="GoDoc" /></a>
+[![Go Reference](https://pkg.go.dev/badge/github.com/KasonBraley/snap.svg)](https://pkg.go.dev/github.com/KasonBraley/snap)
 
 Minimalistic snapshot testing for Go.
 
