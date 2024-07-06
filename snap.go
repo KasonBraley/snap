@@ -178,7 +178,7 @@ func (s *Snapshot) Diff(got string) {
 
 	// Write the modified(and formatted) AST in the buffer back to the original source file.
 	if _, err := io.Copy(outFile, &buf); err != nil {
-		s.t.Errorf("snap: Failed to write modified AST to source file: %s", err)
+		s.t.Errorf("snap: Failed to write modified AST to source file %q: %s", s.location.file, err)
 		return
 	}
 
