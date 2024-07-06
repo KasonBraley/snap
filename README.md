@@ -25,6 +25,8 @@ Limitations:
 - When updating a snapshot that uses the `<snap:ignore>` marker, the marker is overwritten. This can be
   worked around by undoing that specific line back to the ignore marker(I do this easily with Git hunks),
   but it is indeed a little annoying to deal with.
+- Updating the snapshot does not currently work if the `snap.Snap` function is assigned to a different variable.
+  Such as `check := snap.Snap`.
 
 Inspired by:
 
@@ -98,6 +100,27 @@ func TestSnapJSONWithIgnore(t *testing.T) {
   "age": 20,
   "timestamp": "<snap:ignore>"
 }`))
+}
+```
+
+#### Import alias
+
+Snapshot updating still works if you decide to import this package under a different alias, such as:
+
+```go
+import (
+    "strconv"
+    "testing"
+    foo "github.com/KasonBraley/snap"
+)
+
+func TestExample(t *testing.T) {
+    checkAddition := func(x int, y int, want *snap.Snapshot) {
+        got := x + y
+        want.Diff(strconv.Itoa(got))
+    }
+
+    checkAddition(2, 2, foo.Snap(t, "8")) // "foo" instead of "snap" still works when using SNAP_UPDATE=1
 }
 ```
 
