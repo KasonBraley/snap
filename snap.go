@@ -54,6 +54,7 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
+	"io"
 	"os"
 	"runtime"
 	"strings"
@@ -160,16 +161,24 @@ func (s *Snapshot) Diff(got string) {
 		return true
 	})
 
+	// Format the modified AST to a buffer first to avoid writing garbage(or nothing at all) back
+	// to the source file. Only if this succeeds, we then flush the buffer to the source file.
+	var buf bytes.Buffer
+	if err := format.Node(&buf, fset, f); err != nil {
+		s.t.Errorf("snap: Failed to format modified AST, aborting: %s", err)
+		return
+	}
+
 	outFile, err := os.OpenFile(s.location.file, os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
-		s.t.Errorf("snap: Failed to open file for writing: %s", err)
+		s.t.Errorf("snap: Failed to open source file %q for writing to: %s", s.location.file, err)
 		return
 	}
 	defer outFile.Close()
 
-	// Write the modified AST back to the original file.
-	if err := format.Node(outFile, fset, f); err != nil {
-		s.t.Errorf("snap: Failed to write modified AST: %s", err)
+	// Write the modified(and formatted) AST in the buffer back to the original source file.
+	if _, err := io.Copy(outFile, &buf); err != nil {
+		s.t.Errorf("snap: Failed to write modified AST to source file: %s", err)
 		return
 	}
 
