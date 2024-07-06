@@ -133,14 +133,13 @@ func (s *Snapshot) Diff(got string) {
 	ast.Inspect(f, func(n ast.Node) bool {
 		// Check for function call expressions.
 		if callExpr, ok := n.(*ast.CallExpr); ok {
-			// Check if the function being called is from a package (e.g., snap.Snap).
+			if s.location.line != fset.Position(callExpr.Pos()).Line {
+				return true
+			}
+			// Check if the function being called is "Snap".
 			if selExpr, ok := callExpr.Fun.(*ast.SelectorExpr); ok {
-				if ident, ok := selExpr.X.(*ast.Ident); ok {
-					if ident.Name == "snap" && selExpr.Sel.Name == "Snap" {
-						if s.location.line != fset.Position(callExpr.Pos()).Line {
-							return true
-						}
-
+				if _, ok := selExpr.X.(*ast.Ident); ok {
+					if selExpr.Sel.Name == "Snap" {
 						// Check if the __second__ argument is a string literal, the first argument
 						// is for *testing.T.
 						if len(callExpr.Args) > 0 {
