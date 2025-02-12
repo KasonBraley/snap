@@ -7,10 +7,6 @@ Minimalistic snapshot testing for Go.
 Similar to the concept of golden files, but instead of a separate file that contains the snapshot,
 the snapshot is directly in the source code tests.
 
-<p align="center">
-  <img src="https://github.com/KasonBraley/snap/assets/59150626/b058bc53-0d42-4c82-ba23-5a3e6311bded" alt="Video">
-</p>
-
 Highlights:
 
 - Simple, minimal API.
