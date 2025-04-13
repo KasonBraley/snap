@@ -187,6 +187,11 @@ func (s *Snapshot) Diff(got string) {
 // DiffJSON compares the snapshot with the json serialization of a value.
 // It calls [testing.T.Error] when the snapshot is not equal to the value or when an error is encountered
 // elsewhere.
+//
+// DiffJSON preserves the <snap:ignore> markers in the original snapshot if they exist.
+// There are limitations:
+//   - Each JSON field and value must be on it's own line.
+//   - The <snap:ignore> markers must be on the same line as the value they are ignoring.
 func (s *Snapshot) DiffJSON(value any, indent string) {
 	s.t.Helper()
 
@@ -198,7 +203,82 @@ func (s *Snapshot) DiffJSON(value any, indent string) {
 		s.t.Errorf("snap: %v", err)
 		return
 	}
-	s.Diff(strings.TrimSuffix(buf.String(), "\n")) // Trim the trailing newline that *json.Encoder.Encode adds.
+	jsonStr := strings.TrimSuffix(buf.String(), "\n") // Trim the trailing newline that *json.Encoder.Encode adds.
+
+	// If updating and there are <snap:ignore> markers in original snapshot, preserve them
+	if s.shouldUpdate() {
+		jsonStr = preserveIgnoreMarkers(jsonStr, s.text)
+	}
+
+	s.Diff(jsonStr)
+}
+
+func preserveIgnoreMarkers(newJSON string, originalWithIgnores string) string {
+	// If the original doesn't have any ignore markers, just return the new JSON
+	if !strings.Contains(originalWithIgnores, "<snap:ignore>") {
+		return newJSON
+	}
+
+	// Split both into lines for easier processing
+	originalLines := strings.Split(originalWithIgnores, "\n")
+	newLines := strings.Split(newJSON, "\n")
+
+	// For each line in the original that has <snap:ignore>, find and update
+	// the corresponding line in the new JSON
+	for _, origLine := range originalLines {
+		if strings.Contains(origLine, "<snap:ignore>") {
+			// Extract the field name (assuming well-formatted JSON)
+			parts := strings.SplitN(origLine, "\"", 3)
+			if len(parts) < 3 {
+				continue
+			}
+			field := strings.Split(parts[1], "\"")[0]
+
+			// Find this field in newLines
+			for j, newLine := range newLines {
+				fieldPattern := fmt.Sprintf("\"%s\":", field)
+				if strings.Contains(newLine, fieldPattern) {
+					// Replace the new value with <snap:ignore>
+					beforeColon, afterColon, found := strings.Cut(newLine, ":")
+					if found {
+						// Preserve the whitespace after the colon
+						whitespacePart := ""
+						for _, c := range afterColon {
+							if c == ' ' || c == '\t' {
+								whitespacePart += string(c)
+							} else {
+								break
+							}
+						}
+
+						// Check if the line in the new JSON ends with a comma
+						hasComma := strings.HasSuffix(strings.TrimSpace(newLine), ",")
+
+						// Check if the original value was quoted in the original
+						isQuoted := strings.Contains(strings.TrimSpace(origLine), "\": \"<snap:ignore>\"")
+
+						// Build the replacement
+						var replacement string
+						if isQuoted {
+							replacement = "\"<snap:ignore>\""
+						} else {
+							replacement = "<snap:ignore>"
+						}
+
+						// Add back the comma if needed
+						if hasComma {
+							replacement += ","
+						}
+
+						newLines[j] = beforeColon + ":" + whitespacePart + replacement
+					}
+					break
+				}
+			}
+		}
+	}
+
+	return strings.Join(newLines, "\n")
 }
 
 func (s *Snapshot) shouldUpdate() bool {
