@@ -64,7 +64,7 @@ and it will change `snap.Snap("8")` to `snap.Snap("4")` for you.
 This is a small example, this testing strategy really speeds things up when you have large outputs
 that need changing, such as large JSON blobs or any substantial amount of text.
 
-#### Ignoring data
+### Ignoring data
 
 Sometimes you have data in tests that change on each run. Such as timestamps, or random value.
 These values can be ignored using the special marker `<snap:ignore>`.
@@ -96,6 +96,52 @@ func TestSnapJSONWithIgnore(t *testing.T) {
   "age": 20,
   "timestamp": "<snap:ignore>"
 }`))
+}
+```
+
+### Subtests
+
+[Table-driven tests](https://blog.golang.org/subtests) are also supported.
+`SNAP_UPDATE=1` will work as expected and update the correct subtest:
+
+```go
+func TestExample(t *testing.T) {
+	type person struct {
+		Name string    `json:"name"`
+		Age  uint      `json:"age"`
+		Time time.Time `json:"timestamp"`
+	}
+
+	tests := []struct {
+		name         string
+		p            person
+		wantSnapshot *snap.Snapshot
+	}{
+		{
+			name: "basic",
+			p:    person{Name: "Doug", Age: 20, Time: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
+			wantSnapshot: snap.Snap(t, `{
+ "name": "Doug",
+ "age": 20,
+ "timestamp": "2025-01-01T00:00:00Z"
+}`),
+		},
+		{
+			name: "ignore timestamp",
+			p:    person{Name: "Doug", Age: 20, Time: time.Now()},
+			wantSnapshot: snap.Snap(t, `{
+ "name": "Doug",
+ "age": 20,
+ "timestamp": "<snap:ignore>"
+}`),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.wantSnapshot.DiffJSON(tt.p, " ")
+		})
+	}
 }
 ```
 
